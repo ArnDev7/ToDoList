@@ -1,0 +1,89 @@
+/* I kept the CSS basic so it is easy to explain for the assignment. */
+body {
+  margin: 0;
+  font-family: Arial, Helvetica, sans-serif;
+  background: #ffffff;
+  color: #222222;
+}
+
+.app {
+  width: 90%;
+  max-width: 700px;
+  margin: 25px auto;
+}
+
+.header {
+  border-bottom: 1px solid #cccccc;
+  margin-bottom: 20px;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 26px;
+}
+
+.header p {
+  margin-top: 5px;
+}
+
+.task-input,
+.search-form {
+  margin-bottom: 12px;
+}
+
+input[type="text"] {
+  padding: 8px;
+  width: 260px;
+  margin-right: 6px;
+  border: 1px solid #999999;
+}
+
+button {
+  padding: 8px 10px;
+  margin-right: 5px;
+  border: 1px solid #333333;
+  background: #eeeeee;
+  color: #000000;
+  cursor: pointer;
+}
+
+.error-message {
+  color: #b00000;
+}
+
+.loading-message {
+  color: #555555;
+}
+
+.task-list {
+  margin-top: 15px;
+}
+
+.task-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid #dddddd;
+  padding: 8px 0;
+}
+
+.task-row span {
+  flex: 1;
+}
+
+.completed-task {
+  text-decoration: line-through;
+  color: #777777;
+}
+
+@media (max-width: 500px) {
+  input[type="text"] {
+    width: 100%;
+    box-sizing: border-box;
+    margin-bottom: 6px;
+  }
+
+  button {
+    margin-top: 4px;
+  }
+}
