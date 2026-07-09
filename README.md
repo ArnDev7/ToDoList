@@ -1,259 +1,113 @@
-# MERN Task App
+# My MERN Stack Todo List Application (Assignment 8)
 
-This is my task manager app built using React, Express, Node.js, and MongoDB. You can use it to create tasks, view them, search by title, edit titles, check them off as complete, and delete them.
-
-This application is configured as a monorepo and is fully optimized for single-service deployment on Vercel.
+This is my task manager application built using React (Vite) on the frontend and Node/Express/MongoDB on the backend. This project is set up as a monorepo so I can run both parts easily and deploy them.
 
 ---
 
-## Features
+## Log of My Development Steps & Roadblocks (How I Learned & Debugged)
 
-- **Create Tasks:** Easily add new tasks from the input form.
-- **View Tasks:** View all tasks sorted by creation date (newest first).
-- **Inline Editing:** Edit any task title directly inline with "Save" and "Cancel" actions.
-- **Toggle Completion:** Checkbox to mark tasks as complete or incomplete.
-- **Delete Tasks:** Remove tasks instantly.
-- **Search:** Search tasks by title using case-insensitive partial matching.
-- **Data Validation:** Strict title validation (3-100 characters) enforced directly via Mongoose model constraints.
+I decided to document my development process step-by-step to track the issues I faced and show how I solved them.
+
+### Step 1: Connecting Mongoose and Designing the Model
+* **What I did:** I created a folder called `models` and defined `Task.js` using Mongoose.
+* **The Problem:** In my first version, I wrote a super simple schema (just `title: String` and `completed: Boolean`). But when I tested it by adding documents online, I noticed I could create Tasks with blank text or titles like "a". That was buggy.
+* **How I fixed it:** I modified the schema to add Mongoose built-in validations. I restricted the length using `minlength: 3` and `maxlength: 100` and enabled `trim: true` to prevent users from typing only spaces.
+
+### Step 2: The CORS Nightmare
+* **What I did:** I started the express backend on port 5000 and created a blank React project on port 5173. I tried fetching tasks using Axios.
+* **The Problem:** The request failed in the browser console with a red message saying: **"Access to XMLHttpRequest at 'http://localhost:5000/api/tasks' has been blocked by CORS policy..."**.
+* **How I fixed it:** I didn't know what this meant, so I looked it up on stackoverflow. Since the frontend port (5173) is different from the server port (5000), the browser blocks it for safety. I installed the `cors` middleware npm package on my Express server, imported it, and set it up to accept connections from localhost:5173.
+  ```javascript
+  // backend/server.js
+  const cors = require("cors");
+  app.use(cors({ origin: "http://localhost:5173" }));
+  ```
+
+### Step 3: Mongoose Skipping Validations on Edits
+* **What I did:** I wrote the `updateTask` function inside `taskController.js` and went into Postman to test `PUT /api/tasks/:id`.
+* **The Problem:** When creating tasks, my titles were correctly blocked if they were shorter than 3 letters. However, inside `PUT` (edit task), if I sent `{"title": ""}` it completely allowed it! The database updated to a blank title.
+* **How I fixed it:** I searched online for why findByIdAndUpdate ignores schema rules. It turns out Mongoose does **not** evaluate schema rules on updates by default to keep operations fast. I had to explicitly enable validation on update by passing `{ runValidators: true }` in the options block:
+  ```javascript
+  const updatedTask = await Task.findByIdAndUpdate(
+    id,
+    req.body,
+    { new: true, runValidators: true } // Fixed here!
+  );
+  ```
+
+### Step 4: Search Filter Matches
+* **What I did:** I added a search route on `/api/tasks/search?q=XYZ` to filter task names.
+* **The Problem:** When I tried `Task.find({ title: query })`, it returned results only if the search was an exact match. E.g. searching "milk" did not return "Buy cold milk". It was case-sensitive too.
+* **How I fixed it:** I searched how to run partial matches in Mongo. I replaced the query with Mongoose regex helper and mapped the `i` (ignore case) flag.
+  ```javascript
+  const tasks = await Task.find({
+    title: { $regex: query.trim(), $options: "i" }
+  });
+  ```
+
+### Step 5: Synced UI States inside React
+* **What I did:** In `App.jsx`, I loaded the tasks and added delete/toggle buttons.
+* **The Problem:** Originally, to avoid calling the API repeatedly (to save bandwidth), I tried to edit the local React tasks array directly using client-side `.filter()` and `.map()`. So when a task was deleted, I just filtered it out of state. However, it got very buggy when I deleted multiple items, and the list sorting would fall out of sync with what was stored in Atlas.
+* **How I fixed it:** I updated the handlers (`handleDelete`, `handleToggle`, etc.) so that they await the async Axios calls to complete first, and then run `await loadTasks()` to fetch the fresh, sorted list straight from MongoDB. It's much cleaner and guarantees the UI matches the DB state.
+
+### Step 6: Axios Error Parsing
+* **What I did:** I set up React to show errors in an alert/page alert if you typed a short title.
+* **The Problem:** The error box kept printing `[object Object]` or `Request failed with 400` instead of the validation message ("Task title must be at least 3 characters").
+* **How I fixed it:** I ran `console.log(err)` inside catch blocks and inspected the object. I found out Axios encapsulates backend JSON data inside `err.response.data.message`. So I wrote a helper function `setErrorMessage` to parse it safely.
 
 ---
 
 ## Folder Structure
 
+Here is how the project files are organized:
 ```text
 A8_new/
-  ├── vercel.json          # Vercel single-project build and routing config
-  ├── package.json         # Root package file with build scripts
+  ├── vercel.json          # Vercel setup
+  ├── package.json         # Root scripts (install-all, starts both)
   ├── backend/
-  │     ├── controllers/   # Task controller logic
-  │     ├── models/        # Task Mongoose schema
-  │     ├── routes/        # Express API endpoints
-  │     └── server.js      # Express application configuration
+  │     ├── server.js      # Server launch script
+  │     ├── controllers/   # taskController.js (CRUD controllers)
+  │     ├── models/        # Task.js (Schemas with validations)
+  │     └── routes/        # end points
   └── frontend/
-        ├── dist/          # Compiled static React frontend
-        ├── src/           # React frontend source files
+        ├── src/
+        │     ├── App.jsx  # Main App UI & state logic
         │     ├── components/
-        │     ├── services/taskApi.js
-        │     ├── App.jsx
-        │     └── App.css
-        └── package.json   # React/Vite configurations
+        │     └── services/taskApi.js  # Axios calls
 ```
 
 ---
 
-## My Learning Process & Debugging Log
+## Running the Application Locally
 
-During the development of this MERN application, I faced multiple errors and resolved them iteratively. Below is a log of my debugging steps:
-
-### 1. Resolving CORS Errors
-* **Problem:** In my initial setup, when my React frontend tried to send requests to the Express backend (localhost:5000), the browser blocked it with a CORS policy error.
-* **Debugging:** I placed `console.log("Allowed CORS origin:", allowedOrigin)` in `backend/server.js` and saw that the origin was undefined.
-* **Fix:** I installed the `cors` package in the backend, imported it, and allowed requests from `http://localhost:5173` (Vite's port) in my server configurations.
-
-### 2. Validation Missing on Updates
-* **Problem:** When I tested the `PUT /api/tasks/:id` endpoint in Postman, I noticed I was able to update a task to an empty string, even though my Mongoose schema had `required: true` and `minlength: 3` validators.
-* **Debugging:** I checked the Mongoose documentation and learned that `findByIdAndUpdate` does not run schema validators by default.
-* **Fix:** I updated the controller in `taskController.js` and added `{ runValidators: true }` to the update options. I also added `console.log("Error updating task:", err.message)` in the catch block to print validation failures to my terminal.
-
-### 3. Deleting Tasks and UI State Sync
-* **Problem:** When deleting a task, the task would successfully delete in MongoDB, but the item remained visible on the React screen until I manually refreshed the browser.
-* **Debugging:** I added `console.log("Task deleted, reloading list...")` inside `App.jsx` and realized that after the API delete request resolved, I wasn't updating my local React `tasks` state.
-* **Fix:** I added `await loadTasks()` inside the `handleDelete` method right after the `deleteTask(id)` API call so the frontend automatically syncs with the database.
-
-### 4. Vercel Single-Origin Deployments
-* **Problem:** When I imported this project into Vercel, the deploy button was greyed out because Vercel auto-detected multiple service folders and applied the "Services" monorepo preset, expecting a different `vercel.json` format.
-* **Fix:** I clicked the **Application Preset** dropdown in the Vercel project import settings and changed it to **Other**. This allowed Vercel to read my root `vercel.json` and build the single-deployment structure.
-
----
-
-## Local Development Setup
-
-To run both backend and frontend applications locally:
-
-### 1. Install Dependencies
-Run the following command at the root of the project to install all dependencies for both `backend` and `frontend`:
+### 1. Install all dependencies
+I added a double install script to install dependencies for both root, frontend, and backend packages in one command. Run this at the root folder:
 ```bash
 npm run install-all
 ```
 
-### 2. Configure Environment Variables
-Create a `.env` file inside the `backend/` directory:
+### 2. Add dotenv variables
+Create a `.env` file in the `backend/` folder:
 ```env
 PORT=5000
 MONGO_URI=mongodb://127.0.0.1:27017/taskflow
 ```
 
-### 3. Start the Application
-Start the backend server locally:
+### 3. Spin it up
+Run root command to start backend:
 ```bash
 npm start
 ```
-By default, the backend will be available at `http://localhost:5000`.
-
-To work on the frontend React app with hot-reloading:
-1. Go into the frontend folder: `cd frontend`
-2. Start the Vite dev server: `npm run dev`
-The frontend will run at `http://localhost:5173`.
+Go to `frontend/` directory and run React:
+```bash
+cd frontend
+npm run dev
+```
 
 ---
 
-## Production Deployment (Vercel)
+## Deployment (Vercel)
 
-This repository is optimized to deploy both the frontend and backend to Vercel in a single project.
-
-### 1. Set Up MongoDB Atlas
-1. Create a free **M0 Cluster** on MongoDB Atlas.
-2. In **Network Access**, add `0.0.0.0/0` to allow Vercel's serverless functions to connect.
-3. In **Database Access**, create a user with read/write access.
-4. Copy your connection string (e.g. `mongodb+srv://<username>:<password>@cluster0.mongodb.net/?appName=Cluster0`).
-
-### 2. Deploy to Vercel
-1. Log in to Vercel using your GitHub account and import your repository.
-2. Under **Project Settings**, change the **Application Preset** from *Services* to **Other**.
-3. Under **Environment Variables**, add:
-   - `MONGO_URI`: `your_mongodb_atlas_connection_string`
-4. Click **Deploy**.
-
----
-
-## Postman API Testing Log
-
-All endpoints were tested locally against `http://localhost:5000` using Postman.
-
-### 1. Health Check
-- **Endpoint:** `GET http://localhost:5000/api/health`
-- **Status Code:** `200 OK`
-- **Response:**
-```json
-{
-  "status": "ok",
-  "db": "connected"
-}
-```
-
-### 2. Create Task
-- **Endpoint:** `POST http://localhost:5000/api/tasks`
-- **Headers:** `Content-Type: application/json`
-- **Body:**
-```json
-{
-  "title": "Clean my room"
-}
-```
-- **Status Code:** `201 Created`
-- **Response:**
-```json
-{
-  "_id": "64b0f90e5f1b2c3d4e5f6a7b",
-  "title": "Clean my room",
-  "completed": false,
-  "createdAt": "2026-07-09T22:30:00.000Z",
-  "updatedAt": "2026-07-09T22:30:00.000Z",
-  "__v": 0
-}
-```
-
-### 3. Get All Tasks
-- **Endpoint:** `GET http://localhost:5000/api/tasks`
-- **Status Code:** `200 OK`
-- **Response:**
-```json
-[
-  {
-    "_id": "64b0f90e5f1b2c3d4e5f6a7b",
-    "title": "Clean my room",
-    "completed": false,
-    "createdAt": "2026-07-09T22:30:00.000Z",
-    "updatedAt": "2026-07-09T22:30:00.000Z",
-    "__v": 0
-  }
-]
-```
-
-### 4. Update Task (Edit Title)
-- **Endpoint:** `PUT http://localhost:5000/api/tasks/64b0f90e5f1b2c3d4e5f6a7b`
-- **Headers:** `Content-Type: application/json`
-- **Body:**
-```json
-{
-  "title": "Clean my room and study",
-  "completed": false
-}
-```
-- **Status Code:** `200 OK`
-- **Response:**
-```json
-{
-  "_id": "64b0f90e5f1b2c3d4e5f6a7b",
-  "title": "Clean my room and study",
-  "completed": false,
-  "createdAt": "2026-07-09T22:30:00.000Z",
-  "updatedAt": "2026-07-09T22:35:00.000Z",
-  "__v": 0
-}
-```
-
-### 5. Toggle Task Status
-- **Endpoint:** `PATCH http://localhost:5000/api/tasks/64b0f90e5f1b2c3d4e5f6a7b/status`
-- **Headers:** `Content-Type: application/json`
-- **Body:**
-```json
-{
-  "completed": true
-}
-```
-- **Status Code:** `200 OK`
-- **Response:**
-```json
-{
-  "_id": "64b0f90e5f1b2c3d4e5f6a7b",
-  "title": "Clean my room and study",
-  "completed": true,
-  "createdAt": "2026-07-09T22:30:00.000Z",
-  "updatedAt": "2026-07-09T22:40:00.000Z",
-  "__v": 0
-}
-```
-
-### 6. Search Tasks
-- **Endpoint:** `GET http://localhost:5000/api/tasks/search?q=clean`
-- **Status Code:** `200 OK`
-- **Response:**
-```json
-[
-  {
-    "_id": "64b0f90e5f1b2c3d4e5f6a7b",
-    "title": "Clean my room and study",
-    "completed": true,
-    "createdAt": "2026-07-09T22:30:00.000Z",
-    "updatedAt": "2026-07-09T22:40:00.000Z",
-    "__v": 0
-  }
-]
-```
-
-### 7. Delete Task
-- **Endpoint:** `DELETE http://localhost:5000/api/tasks/64b0f90e5f1b2c3d4e5f6a7b`
-- **Status Code:** `200 OK`
-- **Response:**
-```json
-{
-  "message": "Task deleted"
-}
-```
-
-### 8. Validation Testing (Error Case)
-- **Endpoint:** `POST http://localhost:5000/api/tasks`
-- **Body:**
-```json
-{
-  "title": "Go"
-}
-```
-- **Status Code:** `400 Bad Request`
-- **Response:**
-```json
-{
-  "message": "Task validation failed: title: Task title must be at least 3 characters"
-}
-```
+I deployed the app to Vercel as a single app.
+* **Vercel Settings:** When importing, Vercel attempted to set the project preset to "Services" because of the monorepo folder layout. I had to manually edit the **Application Preset** setting to **Other** so it can read `vercel.json` from root directory.
+* **Env variable:** Added `MONGO_URI` to Vercel page dashboard settings.
