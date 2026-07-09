@@ -1,36 +1,48 @@
 const mongoose = require("mongoose");
 
-/* 
-  FIRST ATTEMPT SCHEMA:
-  Initially I just did a super basic layout without validations, but then I noticed
-  empty tasks and single-letter titles (like "x") were saving to my database.
-  
-  const taskSchema = new mongoose.Schema({
-    title: String,
-    completed: Boolean
-  });
-*/
-
-// Updated schema for the database with validation checks
+/**
+ * Task Schema Definition
+ * Represents a single task item in the database, including properties for
+ * tracking completion status, priorities, categories, and due dates.
+ */
 const taskSchema = new mongoose.Schema(
   {
     title: {
       type: String,
       required: [true, "Task title is required"],
-      // Added validations after checking with Postman because empty/1-letter strings were saving
       minlength: [3, "Task title must be at least 3 characters"],
       maxlength: [100, "Task title must be less than 100 characters"],
-      trim: true, // cleans up surrounding white space
+      trim: true,
     },
     completed: {
       type: Boolean,
       default: false,
     },
+    priority: {
+      type: String,
+      enum: {
+        values: ["low", "medium", "high"],
+        message: "Priority must be either low, medium, or high",
+      },
+      default: "medium",
+    },
+    category: {
+      type: String,
+      trim: true,
+      default: "General",
+    },
+    dueDate: {
+      type: Date,
+      default: null,
+    },
   },
   {
-    timestamps: true, // Mongo automatically handles createdAt and updatedAt, which is great for sorting
+    timestamps: true,
   }
 );
 
-module.exports = mongoose.model("Task", taskSchema);
+// Indexes for optimized searching and filtering
+taskSchema.index({ title: "text" });
+taskSchema.index({ completed: 1, createdAt: -1 });
 
+module.exports = mongoose.model("Task", taskSchema);
