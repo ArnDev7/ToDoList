@@ -1,7 +1,9 @@
 import axios from "axios";
 
 const API = axios.create({
-  baseURL: `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/tasks`
+  baseURL: import.meta.env.PROD
+    ? "/api/tasks"
+    : `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/tasks`
 });
 
 export const getTasks = () => API.get("/");
