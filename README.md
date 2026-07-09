@@ -2,6 +2,8 @@
 
 This is my task manager application built using React (Vite) on the frontend and Node/Express/MongoDB on the backend. This project is set up as a monorepo so I can run both parts easily and deploy them.
 
+Deploy Link: https://to-do-list-csrm.vercel.app/
+
 ---
 
 ## Log of My Development Steps & Roadblocks (How I Learned & Debugged)
