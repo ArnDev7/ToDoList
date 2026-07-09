@@ -10,27 +10,22 @@ const allowedOrigin = process.env.CLIENT_URL || "http://localhost:5173";
 app.use(cors({ origin: allowedOrigin }));
 app.use(express.json());
 
-// Serve frontend static build files
 app.use(express.static(path.join(__dirname, "../frontend/dist")));
 
-// MongoDB connection
 mongoose
   .connect(process.env.MONGO_URI, { dbName: "taskflow" })
   .then(() => console.log("MongoDB connected to taskflow"))
   .catch((e) => console.error("MongoDB connection error:", e.message));
 
-// Routes
 app.use("/api/tasks", require("./routes/taskRoutes"));
 
-// Health check
 app.get("/api/health", (req, res) => {
   res.json({
     status: "ok",
-    db: mongoose.connection.readyState === 1 ? "connected" : "disconnected"
+    db: mongoose.connection.readyState === 1 ? "connected" : "disconnected",
   });
 });
 
-// Wildcard route to serve React SPA build index.html
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "../frontend/dist/index.html"));
 });

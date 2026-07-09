@@ -5,6 +5,7 @@ import {
   addTask,
   updateTaskStatus,
   deleteTask,
+  updateTask,
 } from "./services/taskApi";
 import Header from "./components/Header";
 import TaskInput from "./components/TaskInput";
@@ -25,7 +26,6 @@ function App() {
   const loadTasks = async () => {
     setLoading(true);
     setError("");
-
     try {
       const res = await getTasks();
       setTasks(res.data);
@@ -42,7 +42,6 @@ function App() {
 
   const handleAdd = async (task) => {
     setError("");
-
     try {
       await addTask(task);
       setSearchText("");
@@ -54,7 +53,6 @@ function App() {
 
   const handleDelete = async (id) => {
     setError("");
-
     try {
       await deleteTask(id);
       await loadTasks();
@@ -65,7 +63,6 @@ function App() {
 
   const handleToggle = async (id, completed) => {
     setError("");
-
     try {
       await updateTaskStatus(id, completed);
       await loadTasks();
@@ -74,17 +71,28 @@ function App() {
     }
   };
 
+  const handleUpdate = async (id, title) => {
+    setError("");
+    const taskToUpdate = tasks.find((t) => t._id === id);
+    try {
+      await updateTask(id, {
+        title,
+        completed: taskToUpdate ? taskToUpdate.completed : false,
+      });
+      await loadTasks();
+    } catch (err) {
+      setErrorMessage(err, "Task could not be updated");
+    }
+  };
+
   const handleSearch = async (e) => {
     e.preventDefault();
-
     if (!searchText.trim()) {
       loadTasks();
       return;
     }
-
     setLoading(true);
     setError("");
-
     try {
       const res = await searchTasks(searchText);
       setTasks(res.data);
@@ -100,8 +108,6 @@ function App() {
     loadTasks();
   };
 
-  // I reload from the backend after each change so the screen matches MongoDB.
-  // This is easier to follow than changing the list first and fixing it later.
   return (
     <div className="app">
       <Header />
@@ -129,6 +135,7 @@ function App() {
           tasks={tasks}
           onDelete={handleDelete}
           onToggle={handleToggle}
+          onUpdate={handleUpdate}
         />
       )}
     </div>

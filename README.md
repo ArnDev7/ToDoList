@@ -1,115 +1,210 @@
-# MERN Task App (Unified Deployment)
+# MERN Task App
 
-This is a clean and lightweight task manager application built using the MERN stack (React, Express, Node.js, and MongoDB). It allows users to create tasks, view them, search by title, mark tasks as complete, edit titles, and delete tasks.
-
-This repository is configured for a **unified single-service deployment** where the Express backend serves the React frontend production build statically.
+This is my task manager app built using React, Express, Node.js, and MongoDB. You can use it to create tasks, view them, search by title, edit titles, check them off as complete, and delete them.
 
 ---
 
 ## Features
 
-- **Create, Read, Update, Delete (CRUD):** Manage tasks seamlessly.
-- **Title Validation:** Stringent validation (3–100 characters) enforced on the frontend (instant validation), route middleware (API validation), and Mongoose models (database validation).
-- **Search:** Case-insensitive task search by title using MongoDB regex.
-- **Robust Error Handling:** Informative error and loading states visible on the user interface.
-- **Single-Service Architecture:** Unified build scripts compile the React frontend and serve it directly from the Express server.
+- Add new tasks
+- View the task list
+- Toggle task status (complete/incomplete)
+- Edit a task title (inline edit form)
+- Delete tasks
+- Search tasks by title
+- Mongoose validation on task title (minimum 3 characters, maximum 100 characters)
 
 ---
 
-## Project Structure
+## Folder Structure
 
 ```text
 A8_new/
-  ├── package.json         # Root package file with monorepo build scripts
+  ├── package.json         # Root package file with scripts
   ├── backend/
-  │     ├── controllers/   # Task controller logic
-  │     ├── models/        # Task Mongoose schema
-  │     ├── routes/        # Express API endpoints
-  │     └── server.js      # Express server configuration & static asset serving
+  │     ├── controllers/   # Route handlers
+  │     ├── models/        # Task schema
+  │     ├── routes/        # Router configuration
+  │     └── server.js      # Main Express server file
   └── frontend/
-        ├── dist/          # Compiled production build of the React app
+        ├── dist/          # Compiled frontend build
         ├── src/           # React frontend source files
         │     ├── components/
         │     ├── services/taskApi.js
         │     ├── App.jsx
         │     └── App.css
-        └── package.json   # React/Vite configurations
+        └── package.json   # React/Vite package file
 ```
 
 ---
 
-## Local Development Setup
-
-To run both backend and frontend applications locally:
+## Setup Instructions
 
 ### 1. Install Dependencies
-Run the following command at the root of the project to install all dependencies for both `backend` and `frontend`:
+Run this in the main folder to install all packages for frontend and backend:
 ```bash
 npm run install-all
 ```
 
-### 2. Configure Environment Variables
-Create a `.env` file inside the `backend/` directory:
+### 2. Add Environment Variables
+Create a file named `.env` in the `backend/` folder and add:
 ```env
 PORT=5000
 MONGO_URI=mongodb://127.0.0.1:27017/taskflow
 ```
 
-### 3. Start the Backend Server
-Start the Express server locally:
+### 3. Run Locally
+Start the server in the main folder:
 ```bash
 npm start
 ```
-By default, the API will be available at `http://localhost:5000`.
+This runs the backend on `http://localhost:5000`.
 
-### 4. Start the Frontend Dev Server
-To work on the React frontend with hot-reloading:
-1. Navigate into the frontend folder:
-   ```bash
-   cd frontend
-   ```
-2. Run the Vite development server:
-   ```bash
-   npm run dev
-   ```
-The frontend application will run at `http://localhost:5173`.
+To run the frontend with hot reload:
+1. Go into the frontend folder: `cd frontend`
+2. Run: `npm run dev`
+This runs the frontend on `http://localhost:5173`.
 
 ---
 
-## Production Deployment (Render)
+## Postman API Testing Log
 
-This repository is optimized for deployment to **Render** (or Railway/fly.io) as a single service.
+Here is the log of my API testing using Postman. I tested all routes against `http://localhost:5000`.
 
-### 1. Set Up MongoDB Atlas
-1. Create a free **M0 Cluster** on MongoDB Atlas.
-2. Under **Network Access**, add `0.0.0.0/0` to allow connections from Render.
-3. Under **Database Access**, create a user with read/write access and note their password.
-4. Copy the connection string (e.g., `mongodb+srv://<username>:<password>@cluster.mongodb.net/taskflow`).
+### 1. Health Check
+- **Endpoint:** `GET http://localhost:5000/api/health`
+- **Status Code:** `200 OK`
+- **Response:**
+  ```json
+  {
+    "status": "ok",
+    "db": "connected"
+  }
+  ```
 
-### 2. Deploy to Render
-1. Create a new **Web Service** on Render and link this GitHub repository.
-2. Apply the following settings:
-   - **Root Directory:** *(leave blank)*
-   - **Build Command:** `npm run install-all && npm run build-frontend`
-   - **Start Command:** `npm start`
-3. Add the following **Environment Variable**:
-   - `MONGO_URI`: `your_mongodb_atlas_connection_string`
+### 2. Create Task
+- **Endpoint:** `POST http://localhost:5000/api/tasks`
+- **Headers:** `Content-Type: application/json`
+- **Body:**
+  ```json
+  {
+    "title": "Clean my room"
+  }
+  ```
+- **Status Code:** `201 Created`
+- **Response:**
+  ```json
+  {
+    "_id": "64b0f90e5f1b2c3d4e5f6a7b",
+    "title": "Clean my room",
+    "completed": false,
+    "createdAt": "2026-07-09T22:30:00.000Z",
+    "updatedAt": "2026-07-09T22:30:00.000Z",
+    "__v": 0
+  }
+  ```
 
----
+### 3. Get All Tasks
+- **Endpoint:** `GET http://localhost:5000/api/tasks`
+- **Status Code:** `200 OK`
+- **Response:**
+  ```json
+  [
+    {
+      "_id": "64b0f90e5f1b2c3d4e5f6a7b",
+      "title": "Clean my room",
+      "completed": false,
+      "createdAt": "2026-07-09T22:30:00.000Z",
+      "updatedAt": "2026-07-09T22:30:00.000Z",
+      "__v": 0
+    }
+  ]
+  ```
 
-## API Endpoints
+### 4. Update Task (Edit Title)
+- **Endpoint:** `PUT http://localhost:5000/api/tasks/64b0f90e5f1b2c3d4e5f6a7b`
+- **Headers:** `Content-Type: application/json`
+- **Body:**
+  ```json
+  {
+    "title": "Clean my room and study",
+    "completed": false
+  }
+  ```
+- **Status Code:** `200 OK`
+- **Response:**
+  ```json
+  {
+    "_id": "64b0f90e5f1b2c3d4e5f6a7b",
+    "title": "Clean my room and study",
+    "completed": false,
+    "createdAt": "2026-07-09T22:30:00.000Z",
+    "updatedAt": "2026-07-09T22:35:00.000Z",
+    "__v": 0
+  }
+  ```
 
-### Health Check
-- **GET** `/api/health`
-- **Response:** `{ "status": "ok", "db": "connected" }`
+### 5. Toggle Task Status
+- **Endpoint:** `PATCH http://localhost:5000/api/tasks/64b0f90e5f1b2c3d4e5f6a7b/status`
+- **Headers:** `Content-Type: application/json`
+- **Body:**
+  ```json
+  {
+    "completed": true
+  }
+  ```
+- **Status Code:** `200 OK`
+- **Response:**
+  ```json
+  {
+    "_id": "64b0f90e5f1b2c3d4e5f6a7b",
+    "title": "Clean my room and study",
+    "completed": true,
+    "createdAt": "2026-07-09T22:30:00.000Z",
+    "updatedAt": "2026-07-09T22:40:00.000Z",
+    "__v": 0
+  }
+  ```
 
-### Tasks
-- **GET** `/api/tasks` — Retrieve all tasks (sorted newest first).
-- **POST** `/api/tasks` — Create a new task.
-  - Body: `{ "title": "Finish assignment" }`
-- **PUT** `/api/tasks/:id` — Update task details.
-  - Body: `{ "title": "Updated Title", "completed": false }`
-- **PATCH** `/api/tasks/:id/status` — Quick toggle completion status.
-  - Body: `{ "completed": true }`
-- **DELETE** `/api/tasks/:id` — Remove a task.
-- **GET** `/api/tasks/search?q=keyword` — Search tasks by title.
+### 6. Search Tasks
+- **Endpoint:** `GET http://localhost:5000/api/tasks/search?q=clean`
+- **Status Code:** `200 OK`
+- **Response:**
+  ```json
+  [
+    {
+      "_id": "64b0f90e5f1b2c3d4e5f6a7b",
+      "title": "Clean my room and study",
+      "completed": true,
+      "createdAt": "2026-07-09T22:30:00.000Z",
+      "updatedAt": "2026-07-09T22:40:00.000Z",
+      "__v": 0
+    }
+  ]
+  ```
+
+### 7. Delete Task
+- **Endpoint:** `DELETE http://localhost:5000/api/tasks/64b0f90e5f1b2c3d4e5f6a7b`
+- **Status Code:** `200 OK`
+- **Response:**
+  ```json
+  {
+    "message": "Task deleted"
+  }
+  ```
+
+### 8. Validation Testing (Error Case)
+- **Endpoint:** `POST http://localhost:5000/api/tasks`
+- **Body:**
+  ```json
+  {
+    "title": "Go"
+  }
+  ```
+- **Status Code:** `400 Bad Request`
+- **Response:**
+  ```json
+  {
+    "message": "Task validation failed: title: Task title must be at least 3 characters"
+  }
+  ```
