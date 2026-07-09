@@ -5,9 +5,22 @@ const path = require("path");
 require("dotenv").config();
 
 const app = express();
-const allowedOrigin = process.env.CLIENT_URL || "http://localhost:5173";
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://127.0.0.1:5173"
+];
 
-app.use(cors({ origin: allowedOrigin }));
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("CORS blocking: Origin not allowed"));
+      }
+    }
+  })
+);
 app.use(express.json());
 
 app.use(express.static(path.join(__dirname, "../frontend/dist")));
